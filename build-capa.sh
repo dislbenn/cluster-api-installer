@@ -125,7 +125,8 @@ $YQ 'select(.kind == "Deployment")'  "$DST_PH"   > "$OUT_DEPLOY"
 echo "generated: $OUT_DEPLOY"
 
 # 2. CRDs (each crd in different file)
-OUT_CRDS="$OUT_DIR/crd-"
+OUT_CRDS="$OUT_BASE/crds/"
+mkdir -p "$OUT_CRDS"
 $YQ 'select(.kind == "CustomResourceDefinition")'  "$DST_PH"| $YQ --split-exp "\"$OUT_CRDS\""' + .metadata.name + ".yaml"'
 echo "generated: $OUT_CRDS*"
 
@@ -151,11 +152,11 @@ done
 
 if [ "$SYNC2CHARTS" ] ;then
     echo syncing: $OUT_BASE/{values.yaml,templates} "-> charts/$PRJ"
-    rm -rf charts/"$PRJ"/templates
-    cp -a $OUT_BASE/{values.yaml,templates} charts/"$PRJ"
+    rm -rf charts/"$PRJ"/{templates,crds}
+    cp -a $OUT_BASE/{values.yaml,templates,crds} charts/"$PRJ"
     # check the chart
     echo "apply templates: ./charts/$PRJ -> /tmp/$PRJ.yaml"
-    helm template ./charts/"$PRJ" |$YQ  ea '[.] | sort_by(.kind,.metadata.name) | .[] | splitDoc|sort_keys(..)' > /tmp/"$PRJ".yaml
+    helm template ./charts/"$PRJ" --include-crds |$YQ  ea '[.] | sort_by(.kind,.metadata.name) | .[] | splitDoc|sort_keys(..)' > /tmp/"$PRJ".yaml
     sed -i -e 's/^\(version|appVersion\): .*/\1: "'"$OCP_VERSION"'"/' ./charts/"$PRJ"/Chart.yaml
 fi
 
